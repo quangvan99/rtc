@@ -19,12 +19,11 @@ def print_error(msg):
     print(f'!!! {msg}', file=sys.stderr)
 
 class WebRTCClient:
-    def __init__(self, our_id, peer_id, server, webrtc, event_loop):
+    def __init__(self, peer_id, server, webrtc, event_loop):
         self.conn = None
         self.pipe = None
         self.webrtc = webrtc
         self.server = server
-        self.our_id = our_id
         self.id_ = None
         self.peer_id = peer_id
         self.remote_is_offerer = False
@@ -40,10 +39,7 @@ class WebRTCClient:
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
         self.conn = await websockets.connect(self.server, ssl=ssl_context)
-        if self.our_id is None:
-            self.id_ = str(random.randrange(10, 10000))
-        else:
-            self.id_ = self.our_id
+        self.id_ = str(random.randrange(10, 10000))
         await self.send(f'HELLO {self.id_}')
 
         if self.peer_id and not self.remote_is_offerer:
@@ -173,7 +169,7 @@ class WebRTCClient:
             print_error('Unknown JSON message')
 
     def close_pipeline(self):
-        pass  # Do not set the pipeline to NULL here since it's shared
+        pass  
 
     async def loop(self):
         assert self.conn
@@ -225,23 +221,19 @@ async def main():
     # Get the event loop
     loop = asyncio.get_event_loop()
 
-    pairs = [
-        [None, 8819],
-        [None, 270]
-        # [None, 2384],
-        # [None, 8962]
-    ]
+    peer_ids = [8819, 270]
 
     for i in range(len(pairs)):
         PIPELINE_DESC += f""" t. ! queue leaky=downstream max-size-buffers=200 ! rtpvp8pay picture-id-mode=15-bit ! 
         application/x-rtp,media=video,encoding-name=VP8,payload={96+i} ! webrtcbin name=sendrecv{i} latency=0 """
+        
     # Create the pipeline
     pipe = Gst.parse_launch(PIPELINE_DESC)
 
     clients = []
-    for i, (our_id, peer_id) in enumerate(pairs):
+    for i, peer_id in enumerate(peer_ids):
         webrtc = pipe.get_by_name(f'sendrecv{i}')
-        client = WebRTCClient(our_id, peer_id, 'wss://192.168.6.190:8443', webrtc, loop)
+        client = WebRTCClient(peer_id, 'wss://192.168.6.190:8443', webrtc, loop)
         client.pipe = pipe
         client.connect_webrtc_signals()
         clients.append(client)
@@ -249,15 +241,13 @@ async def main():
     # Start the pipeline once
     pipe.set_state(Gst.State.PLAYING)
 
-    tasks = []
     # Connect to the server
     for client in clients:
         await client.connect()
         
     await asyncio.sleep(0.5)
 
-    for client in clients:
-        tasks.append(asyncio.ensure_future(client.loop()))
+    tasks = [asyncio.ensure_future(client.loop()) for client in clients]
     await asyncio.gather(*tasks)
 
     # Clean up
