@@ -26,17 +26,17 @@ class WebRTCSimpleServer(object):
         # Format: {uid: (Peer WebSocketServerProtocol,
         #                remote_address,
         #                <'session'|room_id|None>)}
-        self.peers = dict()
+        self.peers = dict() #TODO : ...
         # Format: {caller_uid: callee_uid,
         #          callee_uid: caller_uid}
         # Bidirectional mapping between the two peers
-        self.sessions = dict()
+        self.sessions = dict()  #TODO : ...
         # Format: {room_id: {peer1_id, peer2_id, peer3_id, ...}}
         # Room dict with a set of peers in each room
-        self.rooms = dict()
+        self.rooms = dict()  #TODO : ...
 
         # Options
-        self.addr = options.addr
+        self.addr = options.addr 
         self.port = options.port
         self.keepalive_timeout = options.keepalive_timeout
         self.cert_restart = options.cert_restart
@@ -144,8 +144,8 @@ class WebRTCSimpleServer(object):
                         print('room {}: {} -> {}: {}'.format(room_id, uid, other_id, msg))
                         await wso.send(msg)
                     elif msg == 'ROOM_PEER_LIST':
-                        room_id = self.peers[peer_id][2]
-                        room_peers = ' '.join([pid for pid in self.rooms[room_id] if pid != peer_id])
+                        room_id = self.peers[uid][2]
+                        room_peers = ' '.join([pid for pid in self.rooms[room_id] if pid != uid])
                         msg = 'ROOM_PEER_LIST {}'.format(room_peers)
                         print('room {}: -> {}: {}'.format(room_id, uid, msg))
                         await ws.send(msg)
@@ -253,7 +253,7 @@ class WebRTCSimpleServer(object):
         return sslctx
 
     async def run(self):
-        async def handler(ws, path):
+        async def handler(ws):
             '''
             All incoming messages are handled here. @path is unused.
             '''
@@ -328,7 +328,7 @@ class WebRTCSimpleServer(object):
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # See: host, port in https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.create_server
-    parser.add_argument('--addr', default='192.168.6.178', help='Address to listen on (default: all interfaces, both ipv4 and ipv6)')
+    parser.add_argument('--addr', default='192.168.6.190', help='Address to listen on (default: all interfaces, both ipv4 and ipv6)')
     parser.add_argument('--port', default=8443, type=int, help='Port to listen on')
     parser.add_argument('--keepalive-timeout', dest='keepalive_timeout', default=30, type=int, help='Timeout for keepalive (in seconds)')
     parser.add_argument('--cert-path', default=os.path.dirname(__file__))

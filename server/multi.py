@@ -11,7 +11,6 @@ import ssl
 import websockets
 import asyncio
 import json
-import gbulb  # Import gbulb
 
 def print_status(msg):
     print(f'--- {msg}')
@@ -215,9 +214,9 @@ class WebRTCClient:
 async def main():
 
     PIPELINE_DESC = '''
-    uridecodebin uri=file:///home/mq4060/quangnv/videos/lythaito.mp4 ! identity sync=true ! 
+    uridecodebin uri=rtsp://admin:MQ%40123456@192.168.6.210:554 ! identity sync=false ! 
     videoconvert ! videoscale ! video/x-raw,width=480,height=270 ! videoconvert ! queue ! 
-    vp8enc deadline=1 keyframe-max-dist=2000 ! tee name=t \
+    vp8enc deadline=1 target-bitrate=1000000 ! tee name=t \
 
     '''
     # Initialize GStreamer and GLib Main Loop
@@ -227,22 +226,22 @@ async def main():
     loop = asyncio.get_event_loop()
 
     pairs = [
-        [None, 1436],
-        [None, 3970],
-        [None, 2384],
-        [None, 8962]
+        [None, 8819],
+        [None, 270]
+        # [None, 2384],
+        # [None, 8962]
     ]
 
     for i in range(len(pairs)):
-        PIPELINE_DESC += f""" t. ! queue leaky=downstream max-size-buffers=100 ! rtpvp8pay picture-id-mode=15-bit ! 
-        queue ! application/x-rtp,media=video,encoding-name=VP8,payload={96+i} ! webrtcbin name=sendrecv{i} latency=0 """
+        PIPELINE_DESC += f""" t. ! queue leaky=downstream max-size-buffers=200 ! rtpvp8pay picture-id-mode=15-bit ! 
+        application/x-rtp,media=video,encoding-name=VP8,payload={96+i} ! webrtcbin name=sendrecv{i} latency=0 """
     # Create the pipeline
     pipe = Gst.parse_launch(PIPELINE_DESC)
 
     clients = []
     for i, (our_id, peer_id) in enumerate(pairs):
         webrtc = pipe.get_by_name(f'sendrecv{i}')
-        client = WebRTCClient(our_id, peer_id, 'wss://192.168.6.178:8443', webrtc, loop)
+        client = WebRTCClient(our_id, peer_id, 'wss://192.168.6.190:8443', webrtc, loop)
         client.pipe = pipe
         client.connect_webrtc_signals()
         clients.append(client)
@@ -254,17 +253,17 @@ async def main():
     # Connect to the server
     for client in clients:
         await client.connect()
-        tasks.append(asyncio.ensure_future(client.loop()))
+        
+    await asyncio.sleep(0.5)
 
-    # Wait for both tasks to complete
+    for client in clients:
+        tasks.append(asyncio.ensure_future(client.loop()))
     await asyncio.gather(*tasks)
 
     # Clean up
     pipe.set_state(Gst.State.NULL)
 
 if __name__ == "__main__":
-    # Install gbulb to integrate asyncio with GLib
-    gbulb.install()
 
     # Get the default event loop
     loop = asyncio.get_event_loop()

@@ -1,4 +1,4 @@
-var ws_server="192.168.6.178";
+var ws_server="192.168.6.190";
 var ws_port = "8443";
 // Set this to use a specific peer id instead of a random one
 var default_peer_id;
